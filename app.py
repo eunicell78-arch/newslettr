@@ -25,41 +25,94 @@ def get_dates():
     return today, week_ago
 
 # ── 뉴스레터 생성 ──────────────────────────────────────
-def generate_newsletter(api_key: str) -> str:
+def generate_newsletter(api_key: str, region: str = "both") -> str:
     today, week_ago = get_dates()
     today_str  = today.strftime("%Y.%m.%d")
     w_ago_str  = week_ago.strftime("%Y.%m.%d")
     today_kor  = today.strftime("%Y년 %m월 %d일")
     w_ago_kor  = week_ago.strftime("%Y년 %m월 %d일")
+    cutoff     = week_ago.strftime('%Y-%m-%d')
+    today_iso  = today.strftime('%Y-%m-%d')
 
-    system = f"""오늘 날짜: {today_kor} ({today.strftime('%Y-%m-%d')})
-수집 허용 기간: {w_ago_kor} ({week_ago.strftime('%Y-%m-%d')}) ~ {today_kor} ({today.strftime('%Y-%m-%d')})
+    # ── 지역별 검색 주제·방법 설정 ──
+    _TRANSLATION_NOTE = f"""══════════════════════════════════════
+⚠️ 해외 기사 번역 규칙 (필수)
+══════════════════════════════════════
+- 모든 기사 요약(2~3문장)은 반드시 한국어로 작성할 것
+- 원문이 영어·중국어·기타 언어여도 한국어로 번역하여 요약
+- 기사 제목도 한국어 번역 제공 (원문 제목은 하이퍼링크에 유지)
+- 전문 용어는 원어 병기 허용 (예: CCS(Combined Charging System))
+- 주간 핵심요약·핵심시그널 테이블도 모두 한국어로 작성
+══════════════════════════════════════
+"""
+
+    if region == "domestic":
+        region_label = "국내(한국)"
+        search_topics = f"""【검색 주제 — 국내(한국) 중심】
+1. 국내 전기차(EV) 시장동향, 신차출시, 판매실적 (한국 완성차, 현대/기아 등)
+2. 국내 전기차 충전케이블·충전인프라, 충전표준(CCS/NACS/CHAdeMO/GB-T)
+3. 국내 휴머노이드 로봇 (한국 기업·연구기관)
+4. 국내 전기차·충전 관련 정책·규제 (환경부, 산업부, 국토부 등)"""
+        search_hints = f"""- "전기차 뉴스 {today.strftime('%Y년 %m월')}" 형태로 검색
+- "한국 EV 충전 after:{cutoff}" 형태로 검색
+- "국내 전기차 정책 after:{cutoff}" 형태로 검색
+- 국내 주요 매체(전자신문, 연합뉴스, 헤럴드경제 등) 포함"""
+        translation_note = ""
+
+    elif region == "international":
+        region_label = "해외(국제)"
+        search_topics = f"""【검색 주제 — 해외(국제) 중심】
+1. Global EV market trends, new models, sales performance (US, Europe, China)
+2. EV charging cable / charging infrastructure, charging standards (CCS/NACS/CHAdeMO/GB-T) globally
+3. Humanoid robots global (Tesla Optimus, Figure, Boston Dynamics, Agility, Unitree, etc.)
+4. EV and charging policy & regulations (US, EU, China, global)"""
+        search_hints = f"""- "EV news after:{cutoff}" 형태로 검색
+- "electric vehicle market {today.strftime('%B %Y')}" 형태로 검색
+- "EV charging infrastructure after:{cutoff}" 형태로 검색
+- "humanoid robot after:{cutoff}" 형태로 검색
+- Reuters, Bloomberg, Electrek, InsideEVs, TechCrunch 등 해외 주요 매체 포함"""
+        translation_note = _TRANSLATION_NOTE
+
+    else:  # "both"
+        region_label = "국내+해외(전체)"
+        search_topics = f"""【검색 주제 — 국내 + 해외 통합】
+1. 전기차(EV) 시장동향, 신차출시, 판매실적 (국내 + 글로벌)
+2. 전기차 충전케이블 / EV charging cable, 충전인프라, 충전표준(CCS/NACS/CHAdeMO/GB-T)
+3. 휴머노이드 로봇 / Humanoid robots (국내 + 글로벌)
+4. 전기차·충전 관련 정책·규제 (한국 및 글로벌)"""
+        search_hints = f"""- "전기차 뉴스 {today.strftime('%Y년 %m월')}" 형태로 검색
+- "EV news after:{cutoff}" 형태로 검색
+- "electric vehicle {today.strftime('%B %Y')}" 형태로 검색
+- "humanoid robot after:{cutoff}" 형태로 검색
+- 국내외 주요 매체 모두 포함"""
+        translation_note = _TRANSLATION_NOTE
+
+    system = f"""오늘 날짜: {today_kor} ({today_iso})
+수집 허용 기간: {w_ago_kor} ({cutoff}) ~ {today_kor} ({today_iso})
+수집 지역: {region_label}
 
 ══════════════════════════════════════
 ⛔ 날짜 필터 — 가장 중요한 규칙
 ══════════════════════════════════════
-- 반드시 각 기사의 발행일을 확인할 것
-- {week_ago.strftime('%Y-%m-%d')} 이전에 발행된 기사는 단 1건도 포함 금지
+- 반드시 각 기사의 발행일을 직접 확인할 것
+- {cutoff} 이전에 발행된 기사는 단 1건도 포함 금지
 - 발행일이 명시되지 않은 기사 포함 금지
 - 날짜 확인 불가능한 기사 포함 금지
-- 웹 검색 시 반드시 "after:{week_ago.strftime('%Y-%m-%d')}" 조건으로 검색할 것
+- 웹 검색 시 반드시 "after:{cutoff}" 조건으로 검색할 것
 - 기사를 목록에 추가하기 전 반드시 발행일을 재확인할 것
+- 검색 결과에서 {cutoff} 이전 날짜가 보이면 즉시 제거하고 다음 기사로 넘어갈 것
 ══════════════════════════════════════
 
+{translation_note}
 【역할】
 Nextron Korea 주간 EV 뉴스레터 생성 AI
 
 【검색 방법】
 각 주제를 검색할 때 반드시 최근 7일 필터 적용:
-- "전기차 뉴스 {today.strftime('%Y년 %m월')}" 형태로 검색
-- "EV news after:{week_ago.strftime('%Y-%m-%d')}" 형태로 검색
-- 검색 결과에서 날짜 확인 후 {week_ago.strftime('%Y-%m-%d')} 이전 기사 즉시 제거
+{search_hints}
+- 검색 결과에서 날짜 확인 후 {cutoff} 이전 기사 즉시 제거
 
-【검색 주제】
-1. 전기차(EV) 시장동향, 신차출시, 판매실적
-2. 전기차 충전케이블 / EV charging cable, 충전인프라, 충전표준(CCS/NACS/CHAdeMO/GB-T)
-3. 휴머노이드 로봇 (humanoid)
-4. 전기차·충전 관련 정책·규제 (한국 및 글로벌)
+{search_topics}
 
 【하이라이트 기업 — 언급 시 <strong>볼드</strong>】
 CHAEVI, EVAR, EVSIS, EVMODE, KEFICO, SKSIGNET, TEXON
@@ -74,13 +127,13 @@ Outlook 최적화 HTML 이메일.
 【섹션 구조】
 ① 헤더: "⚡ 전기차 & 충전케이블 주간뉴스 다이제스트" | {w_ago_str}~{today_str} | Nextron Korea 내부용
    (헤더 배경 #0d1117, 텍스트 흰색)
-② 주간 핵심요약: 3~5개 핵심 뉴스 불릿
-③ 주간 핵심시그널 테이블: 시그널 | 내용 | 영향도(🔴고/🟡중/🟢저)
+② 주간 핵심요약: 3~5개 핵심 뉴스 불릿 (반드시 한국어)
+③ 주간 핵심시그널 테이블: 시그널 | 내용 | 영향도(🔴고/🟡중/🟢저) (반드시 한국어)
 ④ 기업 하이라이트: CHAEVI·EVAR 등 언급 기사 별도 정리 (없으면 섹션 생략)
 ⑤ 카테고리별 뉴스:
    ⚡ 전기차 시장동향 / 🔌 충전 인프라 & 케이블 / 📋 정책 & 규제 / 🔬 기술 & 혁신 / 🤖 휴머노이드
    각 기사: 제목(원문 링크) | 출처 | 발행날짜(YYYY-MM-DD) | 2~3문장 한국어 요약
-   ※ 발행날짜가 {week_ago.strftime('%Y-%m-%d')} 이전이면 절대 포함하지 말 것
+   ※ 발행날짜가 {cutoff} 이전이면 절대 포함하지 말 것
 ⑥ 푸터: © {today.year} Nextron Korea | Claude AI 자동 생성 | {w_ago_str}~{today_str}
 
 <!DOCTYPE html> 로 시작하는 완전한 HTML 문서만 출력. 마크다운 코드펜스(```) 절대 금지."""
@@ -94,10 +147,12 @@ Outlook 최적화 HTML 이메일.
         messages=[{
             "role": "user",
             "content": (
-                f"오늘은 {today.strftime('%Y-%m-%d')}입니다. "
-                f"반드시 {week_ago.strftime('%Y-%m-%d')} ~ {today.strftime('%Y-%m-%d')} 사이 발행된 기사만 포함해서 "
+                f"오늘은 {today_iso}입니다. "
+                f"수집 지역: {region_label}. "
+                f"반드시 {cutoff} ~ {today_iso} 사이 발행된 기사만 포함해서 "
                 f"전기차·EV·충전케이블·휴머노이드 주간 뉴스레터 HTML을 생성해주세요. "
-                f"{week_ago.strftime('%Y-%m-%d')} 이전 기사는 절대 포함 금지."
+                f"{cutoff} 이전 기사는 절대 포함 금지. "
+                f"모든 기사 요약은 반드시 한국어로 작성하세요."
             )
         }]
     )
@@ -202,6 +257,20 @@ def main():
             st.warning("수신자를 1명 이상 선택해주세요.")
 
         st.markdown("---")
+        st.markdown("### 🌏 수집 지역")
+        region_option = st.radio(
+            "수집 지역 선택",
+            options=["both", "domestic", "international"],
+            format_func=lambda x: {
+                "both": "🌏 국내+해외 (전체)",
+                "domestic": "🇰🇷 국내(한국)",
+                "international": "🌐 해외(국제)",
+            }[x],
+            index=0,
+            label_visibility="collapsed",
+        )
+
+        st.markdown("---")
         st.markdown("### 🏢 하이라이트 기업")
         st.caption("  ·  ".join(HIGHLIGHT_COMPANIES))
 
@@ -245,7 +314,7 @@ def main():
             with st.status("🔍 최신 뉴스 수집 & 리포트 생성 중...", expanded=True) as status:
                 try:
                     st.write("🌐 웹에서 최신 뉴스 검색 중...")
-                    html = generate_newsletter(api_key)
+                    html = generate_newsletter(api_key, region=region_option)
                     st.write("✍️ HTML 리포트 생성 완료")
                     st.session_state.html_content = html
                     status.update(label="✅ 뉴스레터 생성 완료!", state="complete")
