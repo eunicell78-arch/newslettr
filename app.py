@@ -7,8 +7,8 @@ from email.mime.text import MIMEText
 from datetime import datetime, timedelta
 import streamlit.components.v1 as components
 
-# ── 설정 ──────────────────────────────────────────────
-RECIPIENTS = [
+# ── 기본 수신자 목록 ────────────────────────────────────
+DEFAULT_RECIPIENTS = [
     "eunice@nextronkorea.com",
     "jack@nextronkorea.com",
     "jacob@nextronkorea.com",
@@ -111,7 +111,7 @@ Outlook 최적화 HTML 이메일.
     return raw[max(idx, 0):]
 
 # ── Gmail 발송 ─────────────────────────────────────────
-def send_email(html: str, gmail_address: str, app_password: str):
+def send_email(html: str, gmail_address: str, app_password: str, recipients: list):
     today, week_ago = get_dates()
     subject = (
         f"⚡ 전기차 & 충전케이블 주간뉴스 다이제스트 "
@@ -120,12 +120,12 @@ def send_email(html: str, gmail_address: str, app_password: str):
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"]    = gmail_address
-    msg["To"]      = ", ".join(RECIPIENTS)
+    msg["To"]      = ", ".join(recipients)
     msg.attach(MIMEText(html, "html", "utf-8"))
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
         server.login(gmail_address, app_password)
-        server.sendmail(gmail_address, RECIPIENTS, msg.as_string())
+        server.sendmail(gmail_address, recipients, msg.as_string())
 
 # ── Streamlit UI ───────────────────────────────────────
 def main():
@@ -135,11 +135,14 @@ def main():
         layout="wide",
     )
 
+    # 세션 초기화
+    if "recipients" not in st.session_state:
+        st.session_state.recipients = DEFAULT_RECIPIENTS.copy()
+
     # ── 사이드바 ──
     with st.sidebar:
         st.markdown("### ⚙️ API 설정")
 
-        # Anthropic API Key
         try:
             api_key = st.secrets["ANTHROPIC_API_KEY"]
             st.success("✅ Anthropic API Key 연결됨")
@@ -149,7 +152,6 @@ def main():
 
         st.markdown("---")
 
-        # Gmail 설정
         try:
             gmail_address  = st.secrets["GMAIL_ADDRESS"]
             gmail_password = st.secrets["GMAIL_APP_PASSWORD"]
@@ -157,13 +159,47 @@ def main():
         except Exception:
             gmail_address  = st.text_input("Gmail 주소", placeholder="your@gmail.com")
             gmail_password = st.text_input("Gmail 앱 비밀번호", type="password",
-                                           placeholder="xxxx xxxx xxxx xxxx",
-                                           help="Google 계정 → 보안 → 앱 비밀번호에서 발급")
+                                           placeholder="xxxx xxxx xxxx xxxx")
 
         st.markdown("---")
-        st.markdown("### 📬 수신자")
-        for r in RECIPIENTS:
-            st.caption(f"• {r}")
+
+        # ── 수신자 관리 ──
+        st.markdown("### 📬 수신자 관리")
+
+        # 수신자 추가
+        with st.expander("➕ 수신자 추가"):
+            new_email = st.text_input("이메일 주소 입력",
+                                      placeholder="name@example.com",
+                                      key="new_email_input",
+                                      label_visibility="collapsed")
+            if st.button("추가하기", use_container_width=True):
+                new_email = new_email.strip()
+                if new_email and "@" in new_email and "." in new_email:
+                    if new_email not in st.session_state.recipients:
+                        st.session_state.recipients.append(new_email)
+                        st.rerun()
+                    else:
+                        st.warning("이미 등록된 이메일입니다.")
+                else:
+                    st.error("올바른 이메일 형식을 입력해주세요.")
+
+        # 수신자 선택 체크박스
+        st.caption("✉️ 발송할 수신자 선택:")
+        selected_recipients = []
+        for r in st.session_state.recipients:
+            col_chk, col_del = st.columns([6, 1])
+            with col_chk:
+                if st.checkbox(r, value=True, key=f"chk_{r}"):
+                    selected_recipients.append(r)
+            with col_del:
+                if st.button("✕", key=f"del_{r}", help="삭제"):
+                    st.session_state.recipients.remove(r)
+                    st.rerun()
+
+        if selected_recipients:
+            st.caption(f"선택: {len(selected_recipients)}명 / 전체: {len(st.session_state.recipients)}명")
+        else:
+            st.warning("수신자를 1명 이상 선택해주세요.")
 
         st.markdown("---")
         st.markdown("### 🏢 하이라이트 기업")
@@ -181,6 +217,7 @@ def main():
     st.divider()
 
     # ── 버튼 영역 ──
+    today, week_ago = get_dates()
     col1, col2, col3 = st.columns(3)
 
     with col1:
@@ -221,17 +258,22 @@ def main():
     if send_btn:
         if not gmail_address or not gmail_password:
             st.error("❌ 사이드바에서 Gmail 주소와 앱 비밀번호를 입력해주세요.")
+        elif not selected_recipients:
+            st.warning("⚠️ 사이드바에서 수신자를 1명 이상 선택해주세요.")
         elif "html_content" not in st.session_state:
             st.warning("⚠️ 먼저 뉴스레터를 생성해주세요.")
         else:
-            with st.spinner(f"📧 {len(RECIPIENTS)}명에게 발송 중..."):
+            with st.spinner(f"📧 {len(selected_recipients)}명에게 발송 중..."):
                 try:
-                    send_email(st.session_state.html_content, gmail_address, gmail_password)
-                    st.success(f"✅ 발송 완료! {len(RECIPIENTS)}명 ({', '.join(r.split('@')[0] for r in RECIPIENTS)})")
+                    send_email(st.session_state.html_content,
+                               gmail_address, gmail_password,
+                               selected_recipients)
+                    names = ", ".join(r.split("@")[0] for r in selected_recipients)
+                    st.success(f"✅ 발송 완료! {len(selected_recipients)}명 ({names})")
                     st.balloons()
                 except Exception as e:
                     st.error(f"❌ 발송 실패: {e}")
-                    st.info("💡 Gmail 앱 비밀번호를 다시 확인해주세요. 일반 비밀번호가 아닌 앱 전용 비밀번호가 필요합니다.")
+                    st.info("💡 Gmail 앱 비밀번호를 확인해주세요. 일반 비밀번호가 아닌 앱 전용 비밀번호가 필요합니다.")
 
     # ── 미리보기 ──
     if "html_content" in st.session_state:
