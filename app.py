@@ -32,11 +32,28 @@ def generate_newsletter(api_key: str) -> str:
     today_kor  = today.strftime("%Y년 %m월 %d일")
     w_ago_kor  = week_ago.strftime("%Y년 %m월 %d일")
 
-    system = f"""오늘은 {today_kor}입니다. Nextron Korea 주간 EV 뉴스레터를 생성합니다.
+    system = f"""오늘 날짜: {today_kor} ({today.strftime('%Y-%m-%d')})
+수집 허용 기간: {w_ago_kor} ({week_ago.strftime('%Y-%m-%d')}) ~ {today_kor} ({today.strftime('%Y-%m-%d')})
 
-【날짜 규칙 — 절대 준수】
-{w_ago_kor} ~ {today_kor} 사이 발행된 기사만 포함.
-7일 초과 기사 → 즉시 제외. 날짜 불분명 기사 → 즉시 제외.
+══════════════════════════════════════
+⛔ 날짜 필터 — 가장 중요한 규칙
+══════════════════════════════════════
+- 반드시 각 기사의 발행일을 확인할 것
+- {week_ago.strftime('%Y-%m-%d')} 이전에 발행된 기사는 단 1건도 포함 금지
+- 발행일이 명시되지 않은 기사 포함 금지
+- 날짜 확인 불가능한 기사 포함 금지
+- 웹 검색 시 반드시 "after:{week_ago.strftime('%Y-%m-%d')}" 조건으로 검색할 것
+- 기사를 목록에 추가하기 전 반드시 발행일을 재확인할 것
+══════════════════════════════════════
+
+【역할】
+Nextron Korea 주간 EV 뉴스레터 생성 AI
+
+【검색 방법】
+각 주제를 검색할 때 반드시 최근 7일 필터 적용:
+- "전기차 뉴스 {today.strftime('%Y년 %m월')}" 형태로 검색
+- "EV news after:{week_ago.strftime('%Y-%m-%d')}" 형태로 검색
+- 검색 결과에서 날짜 확인 후 {week_ago.strftime('%Y-%m-%d')} 이전 기사 즉시 제거
 
 【검색 주제】
 1. 전기차(EV) 시장동향, 신차출시, 판매실적
@@ -62,7 +79,8 @@ Outlook 최적화 HTML 이메일.
 ④ 기업 하이라이트: CHAEVI·EVAR 등 언급 기사 별도 정리 (없으면 섹션 생략)
 ⑤ 카테고리별 뉴스:
    ⚡ 전기차 시장동향 / 🔌 충전 인프라 & 케이블 / 📋 정책 & 규제 / 🔬 기술 & 혁신 / 🤖 휴머노이드
-   각 기사: 제목(원문 링크) | 출처 | 날짜 | 2~3문장 한국어 요약
+   각 기사: 제목(원문 링크) | 출처 | 발행날짜(YYYY-MM-DD) | 2~3문장 한국어 요약
+   ※ 발행날짜가 {week_ago.strftime('%Y-%m-%d')} 이전이면 절대 포함하지 말 것
 ⑥ 푸터: © {today.year} Nextron Korea | Claude AI 자동 생성 | {w_ago_str}~{today_str}
 
 <!DOCTYPE html> 로 시작하는 완전한 HTML 문서만 출력. 마크다운 코드펜스(```) 절대 금지."""
@@ -75,7 +93,12 @@ Outlook 최적화 HTML 이메일.
         tools=[{"type": "web_search_20250305", "name": "web_search"}],
         messages=[{
             "role": "user",
-            "content": f"전기차 EV 충전케이블 휴머노이드 {w_ago_str}~{today_str} 주간 뉴스레터 HTML을 생성해주세요."
+            "content": (
+                f"오늘은 {today.strftime('%Y-%m-%d')}입니다. "
+                f"반드시 {week_ago.strftime('%Y-%m-%d')} ~ {today.strftime('%Y-%m-%d')} 사이 발행된 기사만 포함해서 "
+                f"전기차·EV·충전케이블·휴머노이드 주간 뉴스레터 HTML을 생성해주세요. "
+                f"{week_ago.strftime('%Y-%m-%d')} 이전 기사는 절대 포함 금지."
+            )
         }]
     )
 
