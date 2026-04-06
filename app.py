@@ -35,6 +35,17 @@ def generate_newsletter(api_key: str, region: str = "both") -> str:
     today_iso  = today.strftime('%Y-%m-%d')
 
     # ── 지역별 검색 주제·방법 설정 ──
+    _TRANSLATION_NOTE = f"""══════════════════════════════════════
+⚠️ 해외 기사 번역 규칙 (필수)
+══════════════════════════════════════
+- 모든 기사 요약(2~3문장)은 반드시 한국어로 작성할 것
+- 원문이 영어·중국어·기타 언어여도 한국어로 번역하여 요약
+- 기사 제목도 한국어 번역 제공 (원문 제목은 하이퍼링크에 유지)
+- 전문 용어는 원어 병기 허용 (예: CCS(Combined Charging System))
+- 주간 핵심요약·핵심시그널 테이블도 모두 한국어로 작성
+══════════════════════════════════════
+"""
+
     if region == "domestic":
         region_label = "국내(한국)"
         search_topics = f"""【검색 주제 — 국내(한국) 중심】
@@ -60,16 +71,7 @@ def generate_newsletter(api_key: str, region: str = "both") -> str:
 - "EV charging infrastructure after:{cutoff}" 형태로 검색
 - "humanoid robot after:{cutoff}" 형태로 검색
 - Reuters, Bloomberg, Electrek, InsideEVs, TechCrunch 등 해외 주요 매체 포함"""
-        translation_note = f"""══════════════════════════════════════
-⚠️ 해외 기사 번역 규칙 (필수)
-══════════════════════════════════════
-- 모든 기사 요약(2~3문장)은 반드시 한국어로 작성할 것
-- 원문이 영어·중국어·기타 언어여도 한국어로 번역하여 요약
-- 기사 제목도 한국어 번역 제공 (원문 제목은 하이퍼링크에 유지)
-- 전문 용어는 원어 병기 허용 (예: CCS(Combined Charging System))
-- 주간 핵심요약·핵심시그널 테이블도 모두 한국어로 작성
-══════════════════════════════════════
-"""
+        translation_note = _TRANSLATION_NOTE
 
     else:  # "both"
         region_label = "국내+해외(전체)"
@@ -83,16 +85,7 @@ def generate_newsletter(api_key: str, region: str = "both") -> str:
 - "electric vehicle {today.strftime('%B %Y')}" 형태로 검색
 - "humanoid robot after:{cutoff}" 형태로 검색
 - 국내외 주요 매체 모두 포함"""
-        translation_note = f"""══════════════════════════════════════
-⚠️ 해외 기사 번역 규칙 (필수)
-══════════════════════════════════════
-- 모든 기사 요약(2~3문장)은 반드시 한국어로 작성할 것
-- 원문이 영어·중국어·기타 언어여도 한국어로 번역하여 요약
-- 기사 제목도 한국어 번역 제공 (원문 제목은 하이퍼링크에 유지)
-- 전문 용어는 원어 병기 허용 (예: CCS(Combined Charging System))
-- 주간 핵심요약·핵심시그널 테이블도 모두 한국어로 작성
-══════════════════════════════════════
-"""
+        translation_note = _TRANSLATION_NOTE
 
     system = f"""오늘 날짜: {today_kor} ({today_iso})
 수집 허용 기간: {w_ago_kor} ({cutoff}) ~ {today_kor} ({today_iso})
